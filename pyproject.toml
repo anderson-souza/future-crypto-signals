@@ -1,0 +1,18 @@
+[project]
+name = "future-crypto"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ccxt>=4.5.51",
+    "pandas-ta-classic>=0.4.47",
+    "pydantic>=2.13.3",
+    "pydantic-settings>=2.14.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.12",
+    "ty>=0.0.32",
+]
