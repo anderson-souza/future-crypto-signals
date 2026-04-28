@@ -4,20 +4,40 @@ load_dotenv()
 
 from src.fetcher import BinanceFetcher, FetcherConfig
 from src.indicators import IndicatorConfig, calculate_indicators
+from src.signals import SignalDirection, evaluate_signal
+from src.exceptions import InsufficientDataError
 
 
 def main() -> None:
     cfg = FetcherConfig()
     fetcher = BinanceFetcher(cfg)
+    indicator_cfg = IndicatorConfig()
 
-    print("Fetching 100 candles for BTCUSDT 1h...")
-    candles = fetcher.fetch_candles("BTCUSDT", "1h", 100)
+    min_candles = max(indicator_cfg.rsi_period + 1, indicator_cfg.sma_long_period, indicator_cfg.supertrend_period + 1)
+
+    print("Fetching 500 candles for BTCUSDT 4h...")
+    candles = fetcher.fetch_candles("BTCUSDT", "4h", 500)
     print(f"Got {len(candles)} candles\n")
 
-    indicators = calculate_indicators(candles, IndicatorConfig())
-    print(f"RSI(14):          {indicators.rsi:.2f}")
-    print(f"SMA(20):          {indicators.sma:.2f}")
-    print(f"Supertrend:       {indicators.supertrend.value:.2f} [{indicators.supertrend.direction.value.upper()}]")
+    signals = []
+    for i in range(min_candles, len(candles) + 1):
+        window = candles[:i]
+        try:
+            indicators = calculate_indicators(window, indicator_cfg)
+        except InsufficientDataError:
+            continue
+        signal = evaluate_signal(indicators, window[-1])
+        if signal.direction != SignalDirection.NO_SIGNAL:
+            signals.append(signal)
+
+    print(f"Found {len(signals)} signal(s):\n")
+    for s in signals:
+        print(
+            f"  [{s.timestamp}]  {s.direction.value.upper():4}  "
+            f"Close: {s.close:.2f}  RSI: {s.rsi:.1f}  "
+            f"SMA8: {s.sma_short:.2f}  SMA21: {s.sma_long:.2f}  "
+            f"Supertrend: {s.supertrend_direction.upper()}"
+        )
 
 
 if __name__ == "__main__":
