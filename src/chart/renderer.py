@@ -1,4 +1,6 @@
 import io
+import matplotlib
+matplotlib.use("Agg")  # non-interactive backend — must be set before pyplot import
 
 import matplotlib.pyplot as plt
 import mplfinance as mpf
@@ -36,16 +38,14 @@ def render_chart(data: ChartData, config: ChartConfig | None = None) -> bytes:
 
     buy_markers = pd.Series(float("nan"), index=df.index)
     sell_markers = pd.Series(float("nan"), index=df.index)
-    signal = data.signal
 
-    if signal.direction == SignalDirection.BUY:
+    for signal in data.signals:
         if signal.timestamp not in df.index:
-            raise ChartRenderError(f"signal timestamp {signal.timestamp} not in chart window")
-        buy_markers.loc[signal.timestamp] = df.loc[signal.timestamp, "high"] * 1.002
-    elif signal.direction == SignalDirection.SELL:
-        if signal.timestamp not in df.index:
-            raise ChartRenderError(f"signal timestamp {signal.timestamp} not in chart window")
-        sell_markers.loc[signal.timestamp] = df.loc[signal.timestamp, "low"] * 0.998
+            continue
+        if signal.direction == SignalDirection.BUY:
+            buy_markers.loc[signal.timestamp] = df.loc[signal.timestamp, "high"] * 1.002
+        elif signal.direction == SignalDirection.SELL:
+            sell_markers.loc[signal.timestamp] = df.loc[signal.timestamp, "low"] * 0.998
 
     addplots = [
         mpf.make_addplot(sma_short, color="#f5a623", width=1.2),
@@ -74,8 +74,12 @@ def render_chart(data: ChartData, config: ChartConfig | None = None) -> bytes:
             mpf.make_addplot(sell_markers, type="scatter", markersize=120, marker="v", color="#ef5350")
         )
 
-    direction_label = signal.direction.value.upper()
-    title = f"{signal.symbol} • {signal.timeframe} • {direction_label}"
+    first = data.signals[0] if data.signals else None
+    symbol = first.symbol if first else "—"
+    timeframe = first.timeframe if first else "—"
+    n_buy = sum(1 for s in data.signals if s.direction == SignalDirection.BUY)
+    n_sell = sum(1 for s in data.signals if s.direction == SignalDirection.SELL)
+    title = f"{symbol} • {timeframe} • {n_buy} BUY  {n_sell} SELL"
 
     fig = None
     try:

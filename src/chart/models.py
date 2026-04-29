@@ -9,7 +9,7 @@ from src.signals.models import Signal
 @dataclass(frozen=True)
 class ChartData:
     candles: list[Candle]
-    signal: Signal
+    signals: list[Signal]
     config: IndicatorConfig = field(default_factory=IndicatorConfig)
 
 

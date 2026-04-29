@@ -2,7 +2,6 @@ from datetime import datetime, timezone, timedelta
 
 import pytest
 
-from src.chart.exceptions import ChartRenderError
 from src.chart.models import ChartConfig, ChartData
 from src.chart.renderer import render_chart
 from src.exceptions import InsufficientDataError
@@ -39,26 +38,33 @@ def chart_config():
 
 def test_render_buy_signal_returns_bytes(candles, chart_config):
     signal = _make_signal(candles, SignalDirection.BUY)
-    result = render_chart(ChartData(candles=candles, signal=signal), chart_config)
+    result = render_chart(ChartData(candles=candles, signals=[signal]), chart_config)
     assert isinstance(result, bytes)
     assert len(result) > 0
 
 
 def test_render_sell_signal_returns_bytes(candles, chart_config):
     signal = _make_signal(candles, SignalDirection.SELL)
-    result = render_chart(ChartData(candles=candles, signal=signal), chart_config)
+    result = render_chart(ChartData(candles=candles, signals=[signal]), chart_config)
     assert isinstance(result, bytes)
     assert len(result) > 0
 
 
 def test_render_no_signal_returns_bytes(candles, chart_config):
-    signal = _make_signal(candles, SignalDirection.NO_SIGNAL)
-    result = render_chart(ChartData(candles=candles, signal=signal), chart_config)
+    result = render_chart(ChartData(candles=candles, signals=[]), chart_config)
     assert isinstance(result, bytes)
     assert len(result) > 0
 
 
-def test_signal_timestamp_not_in_window_raises(candles, chart_config):
+def test_render_multiple_signals_returns_bytes(candles, chart_config):
+    buy = _make_signal(candles, SignalDirection.BUY)
+    sell = _make_signal(candles[:-10], SignalDirection.SELL)
+    result = render_chart(ChartData(candles=candles, signals=[buy, sell]), chart_config)
+    assert isinstance(result, bytes)
+    assert len(result) > 0
+
+
+def test_signal_timestamp_outside_window_is_skipped(candles, chart_config):
     last = candles[-1]
     signal = Signal(
         symbol=last.symbol,
@@ -72,25 +78,14 @@ def test_signal_timestamp_not_in_window_raises(candles, chart_config):
         supertrend_direction="bullish",
         timestamp=datetime(2020, 1, 1, tzinfo=timezone.utc),
     )
-    with pytest.raises(ChartRenderError):
-        render_chart(ChartData(candles=candles, signal=signal), chart_config)
+    result = render_chart(ChartData(candles=candles, signals=[signal]), chart_config)
+    assert isinstance(result, bytes)
+    assert len(result) > 0
 
 
 def test_empty_candles_raises(chart_config):
-    signal = Signal(
-        symbol="BTCUSDT",
-        timeframe="1h",
-        direction=SignalDirection.BUY,
-        close=50000.0,
-        rsi=45.0,
-        sma_short=49900.0,
-        sma_long=49800.0,
-        supertrend_value=49500.0,
-        supertrend_direction="bullish",
-        timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
-    )
     with pytest.raises(InsufficientDataError):
-        render_chart(ChartData(candles=[], signal=signal), chart_config)
+        render_chart(ChartData(candles=[], signals=[]), chart_config)
 
 
 def test_chart_config_from_env_default(monkeypatch):
@@ -107,7 +102,5 @@ def test_chart_config_from_env_custom(monkeypatch):
 
 def test_fewer_candles_than_window_renders(chart_config):
     candles = make_candles(40)
-    signal = _make_signal(candles, SignalDirection.NO_SIGNAL)
-    # 40 candles < window=100 → renders all available, no error
-    result = render_chart(ChartData(candles=candles, signal=signal), ChartConfig(window=100))
+    result = render_chart(ChartData(candles=candles, signals=[]), ChartConfig(window=100))
     assert len(result) > 0
