@@ -1,3 +1,4 @@
+import pandas as pd
 import pandas_ta_classic as ta
 
 from src.exceptions import InsufficientDataError
@@ -13,3 +14,12 @@ def calculate_rsi(candles: list[Candle], period: int = 14) -> float:
     df = candles_to_df(candles)
     rsi = ta.rsi(df["close"], length=period)
     return float(rsi.dropna().iloc[-1])
+
+
+def calculate_rsi_series(candles: list[Candle], period: int = 14) -> pd.Series:
+    if period <= 0:
+        raise ValueError("period must be positive")
+    if len(candles) < period + 1:
+        raise InsufficientDataError(required=period + 1, got=len(candles))
+    df = candles_to_df(candles)
+    return ta.rsi(df["close"], length=period)

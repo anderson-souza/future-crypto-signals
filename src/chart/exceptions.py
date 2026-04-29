@@ -1,0 +1,2 @@
+class ChartRenderError(Exception):
+    pass
