@@ -6,12 +6,14 @@ from src.fetcher import BinanceFetcher, FetcherConfig
 from src.indicators import IndicatorConfig, calculate_indicators
 from src.signals import SignalDirection, evaluate_signal
 from src.exceptions import InsufficientDataError
+from src.notifier import TelegramNotifier, NotifierConfig
 
 
 def main() -> None:
     cfg = FetcherConfig()
     fetcher = BinanceFetcher(cfg)
     indicator_cfg = IndicatorConfig()
+    notifier = TelegramNotifier(NotifierConfig())
 
     min_candles = max(indicator_cfg.rsi_period + 1, indicator_cfg.sma_long_period, indicator_cfg.supertrend_period + 1)
 
@@ -29,6 +31,7 @@ def main() -> None:
         signal = evaluate_signal(indicators, window[-1])
         if signal.direction != SignalDirection.NO_SIGNAL:
             signals.append(signal)
+            notifier.send(signal)
 
     print(f"Found {len(signals)} signal(s):\n")
     for s in signals:
