@@ -35,6 +35,14 @@
 - Send formatted signal message to configured Telegram chat
 - Include symbol, direction (BUY/SELL), timeframe, and indicator values
 
+**Candle Chart Renderer** - PLANNED
+
+- Render dark-theme candlestick chart with SMA short/long and Supertrend overlays
+- Mark signal candle with directional triangle (▲ BUY / ▼ SELL)
+- RSI sub-panel with 50 reference line
+- Output: PNG bytes → Telegram attachment + standalone file save
+- Configurable candle window via `CHART_WINDOW` env var (default 100)
+
 ---
 
 ## M2 — Multi-Symbol Scanner
