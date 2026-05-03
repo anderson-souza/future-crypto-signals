@@ -20,7 +20,8 @@ def run_scanner() -> None:
 
     notifier: TelegramNotifier | None
     try:
-        notifier = TelegramNotifier(NotifierConfig())
+        # notifier = TelegramNotifier(NotifierConfig())
+        notifier = None  # Disable Telegram for now
     except ConfigError:
         logger.warning("Telegram not configured — signals logged to console only")
         notifier = None
@@ -46,9 +47,20 @@ def run_scanner() -> None:
     while True:
         for symbol in fetcher_cfg.symbols:
             for timeframe in fetcher_cfg.timeframes:
-                _scan_pair(symbol, timeframe, fetcher, fetcher_cfg, indicator_cfg, min_candles, dedup, notifier)
+                _scan_pair(
+                    symbol,
+                    timeframe,
+                    fetcher,
+                    fetcher_cfg,
+                    indicator_cfg,
+                    min_candles,
+                    dedup,
+                    notifier,
+                )
 
-        logger.info("Cycle complete. Sleeping %ds...", scanner_cfg.scan_interval_seconds)
+        logger.info(
+            "Cycle complete. Sleeping %ds...", scanner_cfg.scan_interval_seconds
+        )
         time.sleep(scanner_cfg.scan_interval_seconds)
 
 
@@ -66,7 +78,9 @@ def _scan_pair(
         candles = fetcher.fetch_candles(symbol, timeframe, fetcher_cfg.default_limit)
 
         if len(candles) < min_candles:
-            logger.warning("%s %s: insufficient candles (%d)", symbol, timeframe, len(candles))
+            logger.warning(
+                "%s %s: insufficient candles (%d)", symbol, timeframe, len(candles)
+            )
             return
 
         indicators = calculate_indicators(candles, indicator_cfg)
@@ -77,14 +91,27 @@ def _scan_pair(
             return
 
         if dedup.is_duplicate(signal):
-            logger.info("%s %s: duplicate %s — skipping", symbol, timeframe, signal.direction.value)
+            logger.info(
+                "%s %s: duplicate %s — skipping",
+                symbol,
+                timeframe,
+                signal.direction.value,
+            )
             return
 
-        logger.info("SIGNAL %s %s %s close=%.2f", signal.direction.value, symbol, timeframe, signal.close)
+        logger.info(
+            "SIGNAL %s %s %s close=%.2f",
+            signal.direction.value,
+            symbol,
+            timeframe,
+            signal.close,
+        )
 
         if notifier:
             notifier.send(signal)
-            png = render_chart(ChartData(candles=candles, signals=[signal], config=indicator_cfg))
+            png = render_chart(
+                ChartData(candles=candles, signals=[signal], config=indicator_cfg)
+            )
             notifier.send_chart(signal, png)
 
         dedup.mark_sent(signal)
