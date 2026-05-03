@@ -4,6 +4,22 @@ from src.signals.models import Signal, SignalDirection
 
 
 def evaluate_signal(indicators: IndicatorResult, candle: Candle) -> Signal:
+    if not indicators.volume.is_sufficient:
+        return Signal(
+            symbol=candle.symbol,
+            timeframe=candle.timeframe,
+            direction=SignalDirection.NO_SIGNAL,
+            close=candle.close,
+            rsi=indicators.rsi,
+            sma_short=indicators.sma_short,
+            sma_long=indicators.sma_long,
+            supertrend_value=indicators.supertrend.value,
+            supertrend_direction=indicators.supertrend.direction.value,
+            rvol=indicators.volume.rvol,
+            volume_suppressed=True,
+            timestamp=candle.timestamp,
+        )
+
     is_buy = (
         indicators.rsi < 50
         and indicators.sma_short > indicators.sma_long
@@ -31,5 +47,7 @@ def evaluate_signal(indicators: IndicatorResult, candle: Candle) -> Signal:
         sma_long=indicators.sma_long,
         supertrend_value=indicators.supertrend.value,
         supertrend_direction=indicators.supertrend.direction.value,
+        rvol=indicators.volume.rvol,
+        volume_suppressed=False,
         timestamp=candle.timestamp,
     )

@@ -22,6 +22,8 @@ def _make_signal(candles, direction: SignalDirection) -> Signal:
         sma_long=last.close - 200,
         supertrend_value=last.close - 500,
         supertrend_direction="bullish",
+        rvol=1.2,
+        volume_suppressed=False,
         timestamp=last.timestamp,
     )
 
@@ -76,6 +78,8 @@ def test_signal_timestamp_outside_window_is_skipped(candles, chart_config):
         sma_long=last.close - 200,
         supertrend_value=last.close - 500,
         supertrend_direction="bullish",
+        rvol=1.2,
+        volume_suppressed=False,
         timestamp=datetime(2020, 1, 1, tzinfo=timezone.utc),
     )
     result = render_chart(ChartData(candles=candles, signals=[signal]), chart_config)

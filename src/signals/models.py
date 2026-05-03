@@ -20,4 +20,6 @@ class Signal:
     sma_long: float
     supertrend_value: float
     supertrend_direction: str
+    rvol: float
+    volume_suppressed: bool
     timestamp: datetime
