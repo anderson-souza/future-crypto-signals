@@ -64,7 +64,7 @@
 ### Features
 
 **Timeframe Confluence** - PLANNED (signal must align on 2+ timeframes)
-**Volume Filter** - PLANNED (ignore signals on low-volume candles)
+**Volume Filter** - SPECIFIED → see [spec](./../features/volume-filter/spec.md) (suppress signals on low-volume candles via RVOL)
 **Signal History Log** - PLANNED (persist signals to file for review)
 
 ---
