@@ -56,9 +56,44 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. Commits — Conventional Commits
+
+**Format:**
+```
+<type>(<scope>): <short description>
+
+[optional body]
+```
+
+**Types:**
+
+| Type | When |
+|------|------|
+| `feat` | New feature or behaviour |
+| `fix` | Bug fix |
+| `refactor` | Code change that is not a fix or feature |
+| `test` | Adding or updating tests |
+| `docs` | Documentation only |
+| `chore` | Build, deps, config — no production code |
+| `perf` | Performance improvement |
+
+**Rules:**
+- Description: imperative, lowercase, no period (`add signal persistence`, not `Added signal persistence.`)
+- Scope: module or layer affected, optional (`feat(persistence): ...`, `fix(scanner): ...`)
+- Body: explain *why*, not *what* — what is already in the diff
+- Breaking change: append `!` after type (`feat!: ...`) and describe in body
+
+**Examples:**
+```
+feat(persistence): add SQLite-backed signal and crypto repositories
+fix(scanner): fail-open on dedup DB error to prevent signal loss
+refactor(deduplicator): extract _is_duplicate_db for clarity
+test(persistence): cover find_last_sent_at boundary cases
+```
+
 ---
 
-## 5. Project-Specific Knowledge
+## 6. Project-Specific Knowledge
 
 ### Binance Futures via ccxt
 
