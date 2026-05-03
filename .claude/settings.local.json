@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv add *)",
+      "Bash(BINANCE_SYMBOLS=BTCUSDT BINANCE_TIMEFRAMES=1h uv run python main.py)",
+      "Bash(git commit *)",
+      "Bash(uv run *)"
+    ]
+  }
+}
