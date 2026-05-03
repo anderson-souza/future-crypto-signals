@@ -12,3 +12,4 @@ wheels/
 .omc
 .env
 .coverage
+.data/

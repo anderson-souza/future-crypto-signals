@@ -6,6 +6,13 @@ from src.exceptions import ConfigError, InsufficientDataError
 from src.fetcher import BinanceFetcher, FetcherConfig
 from src.indicators import IndicatorConfig, calculate_indicators
 from src.notifier import NotifierConfig, TelegramNotifier
+from src.persistence import (
+    CryptocurrencyRepository,
+    Database,
+    PersistenceConfig,
+    PersistenceError,
+    SignalRepository,
+)
 from src.scanner.config import ScannerConfig
 from src.scanner.deduplicator import SignalDeduplicator
 from src.signals import SignalDirection, evaluate_signal
@@ -26,7 +33,12 @@ def run_scanner() -> None:
         logger.warning("Telegram not configured — signals logged to console only")
         notifier = None
 
-    dedup = SignalDeduplicator(scanner_cfg.signal_cooldown_seconds)
+    db = Database(PersistenceConfig())
+    db.initialize()
+    crypto_repo = CryptocurrencyRepository(db)
+    signal_repo = SignalRepository(db)
+
+    dedup = SignalDeduplicator(scanner_cfg.signal_cooldown_seconds, signal_repo)
     fetcher = BinanceFetcher(fetcher_cfg)
 
     min_candles = max(
@@ -56,6 +68,8 @@ def run_scanner() -> None:
                     min_candles,
                     dedup,
                     notifier,
+                    crypto_repo,
+                    signal_repo,
                 )
 
         logger.info(
@@ -73,6 +87,8 @@ def _scan_pair(
     min_candles: int,
     dedup: SignalDeduplicator,
     notifier: TelegramNotifier | None,
+    crypto_repo: CryptocurrencyRepository,
+    signal_repo: SignalRepository,
 ) -> None:
     try:
         candles = fetcher.fetch_candles(symbol, timeframe, fetcher_cfg.default_limit)
@@ -85,6 +101,12 @@ def _scan_pair(
 
         indicators = calculate_indicators(candles, indicator_cfg)
         signal = evaluate_signal(indicators, candles[-1])
+
+        try:
+            crypto_id = crypto_repo.upsert(symbol)
+            signal_repo.save(signal, crypto_id)
+        except PersistenceError as exc:
+            logger.error("%s %s: persistence failed: %s", symbol, timeframe, exc)
 
         if signal.direction == SignalDirection.NO_SIGNAL:
             logger.debug("%s %s: no signal", symbol, timeframe)

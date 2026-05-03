@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.persistence.exceptions import PersistenceError
 from src.scanner.deduplicator import SignalDeduplicator
 from src.signals.models import Signal, SignalDirection
 
@@ -23,6 +24,8 @@ def make_signal(direction: SignalDirection = SignalDirection.BUY) -> Signal:
         timestamp=datetime(2024, 1, 1, tzinfo=timezone.utc),
     )
 
+
+# --- in-memory (existing behaviour) ---
 
 def test_new_signal_not_duplicate():
     dedup = SignalDeduplicator(cooldown_seconds=3600)
@@ -70,3 +73,51 @@ def test_different_symbols_tracked_independently():
     dedup.mark_sent(btc)
     assert dedup.is_duplicate(btc) is True
     assert dedup.is_duplicate(eth) is False
+
+
+# --- DB-backed ---
+
+def test_is_duplicate_db_returns_true_when_recent_signal_exists():
+    signal = make_signal()
+    repo = MagicMock()
+    repo.find_last_sent_at.return_value = datetime.now(timezone.utc)
+
+    dedup = SignalDeduplicator(cooldown_seconds=3600, signal_repo=repo)
+    assert dedup.is_duplicate(signal) is True
+
+
+def test_is_duplicate_db_returns_false_when_no_recent_signal():
+    signal = make_signal()
+    repo = MagicMock()
+    repo.find_last_sent_at.return_value = None
+
+    dedup = SignalDeduplicator(cooldown_seconds=3600, signal_repo=repo)
+    assert dedup.is_duplicate(signal) is False
+
+
+def test_is_duplicate_db_fail_open_on_persistence_error():
+    signal = make_signal()
+    repo = MagicMock()
+    repo.find_last_sent_at.side_effect = PersistenceError("find_last_sent_at")
+
+    dedup = SignalDeduplicator(cooldown_seconds=3600, signal_repo=repo)
+    assert dedup.is_duplicate(signal) is False
+
+
+def test_mark_sent_noop_when_repo_provided():
+    signal = make_signal()
+    repo = MagicMock()
+    repo.find_last_sent_at.return_value = None
+
+    dedup = SignalDeduplicator(cooldown_seconds=3600, signal_repo=repo)
+    dedup.mark_sent(signal)
+
+    repo.assert_not_called()
+    assert dedup._sent == {}
+
+
+def test_falls_back_to_memory_when_no_repo():
+    dedup = SignalDeduplicator(cooldown_seconds=3600, signal_repo=None)
+    signal = make_signal()
+    dedup.mark_sent(signal)
+    assert dedup.is_duplicate(signal) is True

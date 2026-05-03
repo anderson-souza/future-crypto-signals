@@ -42,7 +42,16 @@ def indicator_cfg():
     return cfg
 
 
-def test_no_signal_does_not_notify(fetcher_cfg, indicator_cfg):
+@pytest.fixture
+def repos():
+    crypto_repo = MagicMock()
+    crypto_repo.upsert.return_value = 1
+    signal_repo = MagicMock()
+    return crypto_repo, signal_repo
+
+
+def test_no_signal_does_not_notify(fetcher_cfg, indicator_cfg, repos):
+    crypto_repo, signal_repo = repos
     fetcher = MagicMock()
     fetcher.fetch_candles.return_value = make_candles(150)
     notifier = MagicMock()
@@ -50,13 +59,14 @@ def test_no_signal_does_not_notify(fetcher_cfg, indicator_cfg):
 
     with patch("src.scanner.loop.calculate_indicators"), \
          patch("src.scanner.loop.evaluate_signal", return_value=_make_signal(SignalDirection.NO_SIGNAL)):
-        _scan_pair("BTCUSDT", "1h", fetcher, fetcher_cfg, indicator_cfg, 30, dedup, notifier)
+        _scan_pair("BTCUSDT", "1h", fetcher, fetcher_cfg, indicator_cfg, 30, dedup, notifier, crypto_repo, signal_repo)
 
     notifier.send.assert_not_called()
     notifier.send_chart.assert_not_called()
 
 
-def test_buy_signal_notifies_and_marks(fetcher_cfg, indicator_cfg):
+def test_buy_signal_notifies_and_marks(fetcher_cfg, indicator_cfg, repos):
+    crypto_repo, signal_repo = repos
     fetcher = MagicMock()
     fetcher.fetch_candles.return_value = make_candles(150)
     notifier = MagicMock()
@@ -66,14 +76,15 @@ def test_buy_signal_notifies_and_marks(fetcher_cfg, indicator_cfg):
     with patch("src.scanner.loop.calculate_indicators"), \
          patch("src.scanner.loop.evaluate_signal", return_value=signal), \
          patch("src.scanner.loop.render_chart", return_value=b"png"):
-        _scan_pair("BTCUSDT", "1h", fetcher, fetcher_cfg, indicator_cfg, 30, dedup, notifier)
+        _scan_pair("BTCUSDT", "1h", fetcher, fetcher_cfg, indicator_cfg, 30, dedup, notifier, crypto_repo, signal_repo)
 
     notifier.send.assert_called_once_with(signal)
     notifier.send_chart.assert_called_once_with(signal, b"png")
     assert dedup.is_duplicate(signal) is True
 
 
-def test_duplicate_signal_skips_notify(fetcher_cfg, indicator_cfg):
+def test_duplicate_signal_skips_notify(fetcher_cfg, indicator_cfg, repos):
+    crypto_repo, signal_repo = repos
     fetcher = MagicMock()
     fetcher.fetch_candles.return_value = make_candles(150)
     notifier = MagicMock()
@@ -83,23 +94,25 @@ def test_duplicate_signal_skips_notify(fetcher_cfg, indicator_cfg):
 
     with patch("src.scanner.loop.calculate_indicators"), \
          patch("src.scanner.loop.evaluate_signal", return_value=signal):
-        _scan_pair("BTCUSDT", "1h", fetcher, fetcher_cfg, indicator_cfg, 30, dedup, notifier)
+        _scan_pair("BTCUSDT", "1h", fetcher, fetcher_cfg, indicator_cfg, 30, dedup, notifier, crypto_repo, signal_repo)
 
     notifier.send.assert_not_called()
 
 
-def test_fetch_error_does_not_crash(fetcher_cfg, indicator_cfg):
+def test_fetch_error_does_not_crash(fetcher_cfg, indicator_cfg, repos):
+    crypto_repo, signal_repo = repos
     fetcher = MagicMock()
     fetcher.fetch_candles.side_effect = RuntimeError("network error")
     notifier = MagicMock()
     dedup = SignalDeduplicator(3600)
 
-    _scan_pair("BTCUSDT", "1h", fetcher, fetcher_cfg, indicator_cfg, 30, dedup, notifier)
+    _scan_pair("BTCUSDT", "1h", fetcher, fetcher_cfg, indicator_cfg, 30, dedup, notifier, crypto_repo, signal_repo)
 
     notifier.send.assert_not_called()
 
 
-def test_no_notifier_still_marks_dedup(fetcher_cfg, indicator_cfg):
+def test_no_notifier_still_marks_dedup(fetcher_cfg, indicator_cfg, repos):
+    crypto_repo, signal_repo = repos
     fetcher = MagicMock()
     fetcher.fetch_candles.return_value = make_candles(150)
     dedup = SignalDeduplicator(3600)
@@ -107,6 +120,6 @@ def test_no_notifier_still_marks_dedup(fetcher_cfg, indicator_cfg):
 
     with patch("src.scanner.loop.calculate_indicators"), \
          patch("src.scanner.loop.evaluate_signal", return_value=signal):
-        _scan_pair("BTCUSDT", "1h", fetcher, fetcher_cfg, indicator_cfg, 30, dedup, notifier=None)
+        _scan_pair("BTCUSDT", "1h", fetcher, fetcher_cfg, indicator_cfg, 30, dedup, notifier=None, crypto_repo=crypto_repo, signal_repo=signal_repo)
 
     assert dedup.is_duplicate(signal) is True
